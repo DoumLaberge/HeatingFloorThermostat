@@ -253,7 +253,7 @@ void pump()
   sensors_floor.requestTemperatures(); //Obtenir la temperature du plancher
 
   //Si la pompe est arrêtée et que le plancher à atteind la température la plus froid
-  if ((pumpState == false) and (sensors_floor.getTempCByIndex(0) < (setTemperature - tempThreshold)))
+  if ((pumpState == false) and (sensors_floor.getTempCByIndex(0) <= (setTemperature - tempThreshold)))
   {
     //Start pump
      digitalWrite(RELAYPIN, HIGH);
@@ -261,7 +261,7 @@ void pump()
     pumpState = true;
   }
 
-  if ((pumpState == true) and (sensors_floor.getTempCByIndex(0) > setTemperature))
+  if ((pumpState == true) and (sensors_floor.getTempCByIndex(0) >= setTemperature))
   {
     //Stop pump
     //relay OFF
