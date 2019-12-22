@@ -32,6 +32,7 @@ bool  indModePointe = false;
 
 //Variables
 unsigned long previousMillis = 0;
+unsigned long previousPumpIconMillis = 0;
 boolean pumpState = false;
 
 int buttonUpState = 0;         // variable for reading the pushbutton status
@@ -45,6 +46,7 @@ float roomHum = 0;
 float inTemp = 0;
 float outTemp = 0;
 bool pausePointe = false;
+int lastPumpIcon = 1;
 
 
 // the current address in the EEPROM (i.e. which byte
@@ -335,6 +337,7 @@ void handlePointeOn()
 void setup() {
   float eeSetTemperature;
   float eeTempThreshold;
+  int wifiRetry = 0;
 
   Serial.begin(9600);
 
@@ -343,6 +346,9 @@ void setup() {
   
   pinMode(RELAYPIN, OUTPUT);
 
+  timeClient.begin();
+  modePointe(false);
+  
   //Start up the library
   sensors_floor.begin();
   dht.begin();
@@ -368,41 +374,6 @@ void setup() {
   }
   Serial.print("SetTempThreshold :");
   Serial.print(tempThreshold);
-  
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
- 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
- 
-  Serial.println("");
-  Serial.println("WiFi connected");
-
-  timeClient.begin();
-  modePointe(false);
-
-  // On branche la fonction qui gère la premiere page / link to the function that manage launch page 
-  serverWeb.on ( "/", handleRoot );
-  serverWeb.on ( "/consigne_up", handleConsigneUp );
-  serverWeb.on ( "/consigne_down", handleConsigneDown );
-  serverWeb.on ( "/threshold_up", handleThresholdUp );
-  serverWeb.on ( "/threshold_down", handleThresholdDown );
-  serverWeb.on ( "/pointe_off", handlePointeOff );
-  serverWeb.on ( "/pointe_on", handlePointeOn );
-  
-  // Start the server
-  serverWeb.begin();
-  Serial.println("Server started");
- 
-  // Print the IP address
-  Serial.print("Use this URL : ");
-  Serial.print("http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("/");
-
-//  ThingSpeak.begin( client );
 
   //Prepare the screen
   tft.init();
@@ -417,6 +388,45 @@ void setup() {
   tft.drawChar(125,10,210,7);
   flecheIn();
   flecheOut();  
+
+  
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+ 
+  while ((WiFi.status() != WL_CONNECTED) && (wifiRetry <= 10)) {
+    delay(900);
+    wifiRetry = wifiRetry + 1;
+    Serial.print(wifiRetry);
+  }
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.println("");
+    Serial.println("WiFi connected");
+  
+  
+    // On branche la fonction qui gère la premiere page / link to the function that manage launch page 
+    serverWeb.on ( "/", handleRoot );
+    serverWeb.on ( "/consigne_up", handleConsigneUp );
+    serverWeb.on ( "/consigne_down", handleConsigneDown );
+    serverWeb.on ( "/threshold_up", handleThresholdUp );
+    serverWeb.on ( "/threshold_down", handleThresholdDown );
+    serverWeb.on ( "/pointe_off", handlePointeOff );
+    serverWeb.on ( "/pointe_on", handlePointeOn );
+    
+    // Start the server
+    serverWeb.begin();
+    Serial.println("Server started");
+   
+    // Print the IP address
+    Serial.print("Use this URL : ");
+    Serial.print("http://");
+    Serial.print(WiFi.localIP());
+    Serial.println("/");
+  }
+//  ThingSpeak.begin( client );
+
+
 }
 
 
@@ -431,10 +441,39 @@ void loop()
   serverWeb.handleClient();
 
   //Gestion des buttons Up et Down
-  
+  // read the state of the pushbutton value:
+  buttonUpState = digitalRead(buttonUpPin);
 
+  if (buttonUpState != lastButtonUpState)
+  {
+    if (buttonUpState == LOW)
+    {
+      Serial.println("UP - LOW");
+      setTemperature = setTemperature + 0.5;
+      affSetFloorTemp(setTemperature);
+    }
 
+    lastButtonUpState = buttonUpState;
+    // Delay a little bit to avoid bouncing
+    delay(50);
+  }
 
+  // read the state of the pushbutton value:
+  buttonDownState = digitalRead(buttonDownPin);
+
+  if (buttonDownState != lastButtonDownState)
+  {
+    if (buttonDownState == LOW)
+    {
+      Serial.println("DOWN - LOW");
+      setTemperature = setTemperature - 0.5;
+      affSetFloorTemp(setTemperature);
+    }
+
+    lastButtonDownState = buttonDownState;
+    // Delay a little bit to avoid bouncing
+    delay(50);
+  }
 
 
   //Vérifier l'état de la pompe à toutes les "pumpInterval"
@@ -450,6 +489,7 @@ void loop()
 
     sensors_floor.requestTemperatures(); //Obtenir la temperature des DS18b
     floorTemp = sensors_floor.getTempC(adrFloorSensor);
+    //Gestion de la pompe
     pump(floorTemp);
 
     //Get and Update infos on screen @ pumpInterval
@@ -465,6 +505,8 @@ void loop()
       Serial.println("Failed to read from DHT sensor!");
     }
 
+
+    
 Serial.println("inTemp:");
 Serial.println(inTemp);
 
@@ -485,6 +527,7 @@ Serial.println(floorTemp);
 Serial.println("setTemperature:");
 Serial.println(setTemperature);
 
+    //Mise à jour de l'affichage
     tempIn(inTemp);
     tempOut(outTemp);
     delta(inTemp, outTemp);
@@ -503,6 +546,34 @@ Serial.println(setTemperature);
     timeClient.update(); //Il a en plus son propre délai dans la librairie
     Serial.println(timeClient.getFormattedTime());
   }  
+
+  //L'affichage de l'indicateur de pompe à son propre "non blocking thread"
+  if (pumpState == true)
+  {
+    //non-blocking
+    if (currentMillis - previousPumpIconMillis >= 1000) 
+    {
+      // save the last time you check the pumpÎcon
+      previousPumpIconMillis = currentMillis;
+      
+      if ( lastPumpIcon == 2 )
+      {
+        tft.drawBitmap(100, 5, pumpIcon_1, 50, 50, 0xBDF7);  
+        lastPumpIcon = 1;
+      }
+      else
+      {
+        tft.drawBitmap(100, 5, pumpIcon_2, 50, 50, 0xBDF7);
+        lastPumpIcon = 2;
+      }
+    }
+  }
+  else
+  {
+    //Effacer l'icon
+    tft.fillRect(100, 5, 50, 50, 0xBDF7);
+  }
+
 }
 
 //*****************************************************
@@ -685,11 +756,14 @@ void affFloorTemp(float p_floorTemp)
 // pumpAct
 //
 //*****************************************************
-void pumpAct(int p_pumpAct)
+void pumpAct(bool p_pumpAct)
 {
-  tft.drawBitmap(100, 5, pumpIcon_1, 50, 50, 0xBDF7);
-  delay(1000);
-  tft.drawBitmap(100, 5, pumpIcon_2, 50, 50, 0xBDF7);
+  if (p_pumpAct == true)
+  {
+    tft.drawBitmap(100, 5, pumpIcon_1, 50, 50, 0xBDF7);
+    delay(1000);
+    tft.drawBitmap(100, 5, pumpIcon_2, 50, 50, 0xBDF7);
+  }
  
 }
 
