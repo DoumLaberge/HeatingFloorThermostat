@@ -14,8 +14,8 @@
 #define RELAYPIN D1
 #define DHTPIN D3     // what pin we're connected to
 #define DHTTYPE DHT22
-#define buttonUpPin D3
-#define buttonDownPin D4
+#define buttonUpPin D4
+#define buttonDownPin A0
 
 //Configuration
 const char* ssid = "safe_local";
@@ -38,7 +38,7 @@ boolean pumpState = false;
 int buttonUpState = 0;         // variable for reading the pushbutton status
 int buttonDownState = 0;         // variable for reading the pushbutton status
 int lastButtonUpState = 0;         // variable for reading the pushbutton status
-int lastButtonDownState = 0;         // variable for reading the pushbutton status
+int lastButtonDownState = 1;         // variable for reading the pushbutton status
 
 float floorTemp = 0;
 float roomTemp = 0;
@@ -342,7 +342,7 @@ void setup() {
   Serial.begin(9600);
 
   pinMode(buttonUpPin, INPUT_PULLUP);
-  pinMode(buttonDownPin, INPUT_PULLUP);
+  pinMode(buttonDownPin, INPUT);
   
   pinMode(RELAYPIN, OUTPUT);
 
@@ -458,12 +458,11 @@ void loop()
     delay(50);
   }
 
-  // read the state of the pushbutton value:
-  buttonDownState = digitalRead(buttonDownPin);
-
+  buttonDownState = analogRead(buttonDownPin);
+ 
   if (buttonDownState != lastButtonDownState)
   {
-    if (buttonDownState == LOW)
+    if (buttonDownState >= 1000)
     {
       Serial.println("DOWN - LOW");
       setTemperature = setTemperature - 0.5;
@@ -506,7 +505,7 @@ void loop()
     }
 
 
-    
+ /*   
 Serial.println("inTemp:");
 Serial.println(inTemp);
 
@@ -526,7 +525,7 @@ Serial.println(floorTemp);
 
 Serial.println("setTemperature:");
 Serial.println(setTemperature);
-
+*/
     //Mise à jour de l'affichage
     tempIn(inTemp);
     tempOut(outTemp);
@@ -555,10 +554,13 @@ Serial.println(setTemperature);
     {
       // save the last time you check the pumpÎcon
       previousPumpIconMillis = currentMillis;
-      
+
+      //Effacer l'icon
+      tft.fillRect(100, 5, 50, 50, 0x0000);
+     
       if ( lastPumpIcon == 2 )
       {
-        tft.drawBitmap(100, 5, pumpIcon_1, 50, 50, 0xBDF7);  
+        tft.drawBitmap(100, 5, pumpIcon_1, 50, 50, 0xBDF7);  //0xBDF7
         lastPumpIcon = 1;
       }
       else
@@ -571,9 +573,8 @@ Serial.println(setTemperature);
   else
   {
     //Effacer l'icon
-    tft.fillRect(100, 5, 50, 50, 0xBDF7);
+    tft.fillRect(100, 5, 50, 50, 0x0000);
   }
-
 }
 
 //*****************************************************
@@ -752,20 +753,6 @@ void affFloorTemp(float p_floorTemp)
   tft.print("C");
 }
 
-//*****************************************************
-// pumpAct
-//
-//*****************************************************
-void pumpAct(bool p_pumpAct)
-{
-  if (p_pumpAct == true)
-  {
-    tft.drawBitmap(100, 5, pumpIcon_1, 50, 50, 0xBDF7);
-    delay(1000);
-    tft.drawBitmap(100, 5, pumpIcon_2, 50, 50, 0xBDF7);
-  }
- 
-}
 
 //*****************************************************
 // modePointe
