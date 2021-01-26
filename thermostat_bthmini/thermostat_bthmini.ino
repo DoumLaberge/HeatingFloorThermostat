@@ -23,7 +23,7 @@ const char* password = "ew6NuaOIdLb3CKmCKS";
 const long  pumpInterval = 10000; //Check  @ 10seconds
 const long  loggingInterval = 60000; //Check  @ 60seconds
 const long  secPumpAfterTempReach = 60000; //La pompe continue 60 secondes après que la plancher à atteind la consigne
-const float const_overShoot = 1.0;
+const float const_overShoot = 1.5;
 
 float setTemperature = 15.0;  //15.0 C par défaut
 float tempThreshold = 0.20; //combien de degré +/- avant de déclancher la pompe
@@ -70,8 +70,8 @@ NTPClient timeClient(ntpUDP, "ca.pool.ntp.org", -18000, 3600000);
 
 OneWire oneWire(ONE_WIRE_PIN);
 DallasTemperature sensors_floor(&oneWire);
-//DeviceAddress adrFloorSensor = { 0x28, 0xEE, 0x10, 0xB8, 0x1D, 0x16, 0x01, 0x97 };
-DeviceAddress adrFloorSensor = { 0x28, 0xFF, 0x85, 0x3F, 0xC1, 0x16, 0x04, 0x5C };
+DeviceAddress adrFloorSensor = { 0x28, 0xEE, 0x10, 0xB8, 0x1D, 0x16, 0x01, 0x97 };
+//DeviceAddress adrFloorSensor = { 0x28, 0xFF, 0x85, 0x3F, 0xC1, 0x16, 0x04, 0x5C };
 DeviceAddress adrInSensor = { 0x28, 0xFF, 0x9A, 0x56, 0xB5, 0x16, 0x03, 0xBE };
 DeviceAddress adrOutSensor = { 0x28, 0xEE, 0x0A, 0xCE, 0x1A, 0x16, 0x02, 0x6F };
 
@@ -768,8 +768,8 @@ void modePointe(bool p_Pointe)
     //1623, 956
     hhmm = (timeClient.getHours() * 100) + timeClient.getMinutes();
 
-    //1 heure avant une pointe, augmenter le set point de 1 degré
-    if (((hhmm >= 500) && (hhmm <= 600)) || ((hhmm >= 1500) && (hhmm <= 1600)))
+    //4 heures avant une pointe, augmenter le set point de 1,5 degré
+    if (((hhmm >= 200) && (hhmm <= 600)) || ((hhmm >= 1200) && (hhmm <= 1600)))
     {
       overShoot = const_overShoot;
     }
