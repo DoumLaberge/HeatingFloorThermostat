@@ -18,8 +18,8 @@
 #define buttonDownPin A0
 
 //Configuration
-const char* ssid = "safe_local";
-const char* password = "ew6NuaOIdLb3CKmCKS";
+const char* ssid = "";
+const char* password = "";
 const long  pumpInterval = 10000; //Check  @ 10seconds
 const long  loggingInterval = 60000; //Check  @ 60seconds
 const long  secPumpAfterTempReach = 60000; //La pompe continue 60 secondes après que la plancher à atteind la consigne
